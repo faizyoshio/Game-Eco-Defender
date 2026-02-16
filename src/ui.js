@@ -1,3 +1,4 @@
+
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 const TRACK_LABELS = {
@@ -43,7 +44,11 @@ export class UIManager {
       budgetValue: document.getElementById("budget-value"),
       yearValue: document.getElementById("year-value"),
       populationValue: document.getElementById("population-value"),
+      debtValue: document.getElementById("debt-value"),
+      interestValue: document.getElementById("interest-value"),
       roundInfo: document.getElementById("round-info"),
+      policyTitle: document.getElementById("policy-title"),
+      policyTitleMobile: document.getElementById("policy-title-mobile"),
       statusBadges: document.getElementById("status-badges"),
       eventBanner: document.getElementById("event-banner"),
       policyCards: document.getElementById("policy-cards"),
@@ -51,10 +56,16 @@ export class UIManager {
       skipPolicyBtn: document.getElementById("skip-policy"),
       skipPolicyMobileBtn: document.getElementById("skip-policy-mobile"),
       chartLegend: document.getElementById("chart-legend"),
+      projectionList: document.getElementById("projection-list"),
       stakeholderList: document.getElementById("stakeholder-list"),
       upgradeList: document.getElementById("upgrade-list"),
       eventLog: document.getElementById("event-log"),
       leaderboardList: document.getElementById("leaderboard-list"),
+      gameoverModal: document.getElementById("gameover-modal"),
+      gameoverTitle: document.getElementById("gameover-title"),
+      gameoverReason: document.getElementById("gameover-reason"),
+      scoreBreakdownList: document.getElementById("score-breakdown-list"),
+      gameoverCloseBtn: document.getElementById("gameover-close-btn"),
       mobileTabs: document.getElementById("mobile-tabs"),
       panelTrack: document.getElementById("panel-track"),
       analyticsSection: document.querySelector(".analytics-section"),
@@ -67,7 +78,8 @@ export class UIManager {
     this.bindEvents();
     this.bindSimulationEvents();
     this.setMobilePanel(0);
-    this.updatePolicyContainers([], false);
+    this.elements.policyCards.innerHTML = "<p class=\"disabled-note\">Start a game to begin.</p>";
+    this.elements.policyCardsMobile.innerHTML = "<p class=\"disabled-note\">Start a game to begin.</p>";
   }
 
   bindEvents() {
@@ -84,13 +96,15 @@ export class UIManager {
       policyCards,
       policyCardsMobile,
       mobileTabs,
-      analyticsSection
+      analyticsSection,
+      gameoverCloseBtn
     } = this.elements;
 
     startNewBtn.addEventListener("click", () => {
       const difficulty = startDifficulty.value;
       difficultySelect.value = difficulty;
       this.simulation.startNewGame(difficulty);
+      this.hideGameoverModal();
       this.showGame();
       this.showToast(`New ${difficulty} game started.`);
     });
@@ -106,6 +120,7 @@ export class UIManager {
     newGameBtn.addEventListener("click", () => {
       const difficulty = difficultySelect.value;
       this.simulation.startNewGame(difficulty);
+      this.hideGameoverModal();
       this.showGame();
       this.showToast(`New ${difficulty} game started.`);
     });
@@ -124,22 +139,29 @@ export class UIManager {
     });
 
     skipPolicyBtn.addEventListener("click", () => {
-      this.simulation.skipPolicy();
+      const result = this.simulation.skipPolicy();
+      this.showToast(result.message);
     });
 
     skipPolicyMobileBtn.addEventListener("click", () => {
-      this.simulation.skipPolicy();
+      const result = this.simulation.skipPolicy();
+      this.showToast(result.message);
     });
 
     [policyCards, policyCardsMobile].forEach((container) => {
       container.addEventListener("click", (event) => {
-        const button = event.target.closest("button[data-policy-id]");
-        if (!button) {
+        const policyButton = event.target.closest("button[data-policy-id]");
+        if (policyButton) {
+          const result = this.simulation.applyPolicy(policyButton.dataset.policyId);
+          this.showToast(result.message);
           return;
         }
-        const policyId = button.dataset.policyId;
-        const result = this.simulation.applyPolicy(policyId);
-        this.showToast(result.message);
+
+        const decisionButton = event.target.closest("button[data-major-option-id]");
+        if (decisionButton) {
+          const result = this.simulation.chooseMajorDecisionOption(decisionButton.dataset.majorOptionId);
+          this.showToast(result.message);
+        }
       });
     });
 
@@ -148,8 +170,7 @@ export class UIManager {
       if (!tab) {
         return;
       }
-      const panel = tab.dataset.panel;
-      this.setMobilePanel(panel === "policies" ? 1 : 0);
+      this.setMobilePanel(tab.dataset.panel === "policies" ? 1 : 0);
     });
 
     analyticsSection.addEventListener("pointerdown", (event) => {
@@ -163,16 +184,14 @@ export class UIManager {
       if (!this.isMobileLayout() || this.pointerStartX === null) {
         return;
       }
+
       const diff = event.clientX - this.pointerStartX;
       this.pointerStartX = null;
       if (Math.abs(diff) < 48) {
         return;
       }
-      if (diff < 0) {
-        this.setMobilePanel(1);
-      } else {
-        this.setMobilePanel(0);
-      }
+
+      this.setMobilePanel(diff < 0 ? 1 : 0);
     });
 
     window.addEventListener("resize", () => {
@@ -180,6 +199,10 @@ export class UIManager {
       if (!this.isMobileLayout()) {
         this.setMobilePanel(0);
       }
+    });
+
+    gameoverCloseBtn.addEventListener("click", () => {
+      this.hideGameoverModal();
     });
   }
 
@@ -194,9 +217,9 @@ export class UIManager {
     });
 
     this.simulation.on("gameover", (payload) => {
-      const resultLabel = payload.result === "win" ? "Victory" : "Defeat";
-      this.showBanner(`${resultLabel}: ${payload.reason}`);
-      this.showToast(`${resultLabel}: ${payload.reason}`);
+      const label = payload.result === "win" ? "Victory" : "Defeat";
+      this.showBanner(`${label}: ${payload.reason}`);
+      this.showGameoverModal(payload);
     });
   }
 
@@ -205,31 +228,42 @@ export class UIManager {
       budgetValue,
       yearValue,
       populationValue,
+      debtValue,
+      interestValue,
       roundInfo,
       difficultySelect,
       skipPolicyBtn,
-      skipPolicyMobileBtn
+      skipPolicyMobileBtn,
+      policyTitle,
+      policyTitleMobile
     } = this.elements;
 
-    budgetValue.textContent = this.formatBudget(snapshot.budget);
+    budgetValue.textContent = this.formatMoney(snapshot.budget);
     yearValue.textContent = String(snapshot.year);
     populationValue.textContent = this.formatPopulation(snapshot.populationAbsolute);
+    debtValue.textContent = this.formatMoney(snapshot.debt);
+    interestValue.textContent = this.formatMoney(snapshot.lastInterestCharge);
     difficultySelect.value = snapshot.difficulty;
 
     roundInfo.textContent =
-      `Cycle ${snapshot.cycleInYear}/${snapshot.timing.cyclesPerYear} • ` +
+      `Cycle ${snapshot.cycleInYear}/${snapshot.timing.cyclesPerYear} | ` +
       `Stability ${snapshot.stabilityCycles}/${snapshot.targetStabilityCycles}`;
 
-    const disableActions = snapshot.gameStatus !== "running";
-    skipPolicyBtn.disabled = disableActions || snapshot.policyResolvedCycle;
-    skipPolicyMobileBtn.disabled = disableActions || snapshot.policyResolvedCycle;
+    const majorDecisionPending = Boolean(snapshot.majorDecision);
+    policyTitle.textContent = majorDecisionPending ? "Major Global Decision" : "Policy Choices";
+    policyTitleMobile.textContent = majorDecisionPending ? "Major Global Decision" : "Policy Choices";
+
+    const disableActions = snapshot.gameStatus !== "running" || snapshot.policyResolvedCycle || majorDecisionPending;
+    skipPolicyBtn.disabled = disableActions;
+    skipPolicyMobileBtn.disabled = disableActions;
 
     this.renderStatusBadges(snapshot);
+    this.renderProjections(snapshot);
     this.renderStakeholders(snapshot);
     this.renderUpgrades(snapshot);
     this.renderEventLog(snapshot);
     this.renderLeaderboard(snapshot);
-    this.updatePolicyContainers(snapshot.currentPolicies, snapshot.policyResolvedCycle);
+    this.updatePolicyContainers(snapshot);
   }
 
   renderStatusBadges(snapshot) {
@@ -237,16 +271,36 @@ export class UIManager {
       .map((indicator) => {
         const value = snapshot.indicators[indicator.key];
         const state = snapshot.indicatorStatuses[indicator.key];
-        const labelValue =
-          indicator.key === "carbon"
-            ? `${value.toFixed(1)} (emissions)`
-            : `${value.toFixed(1)}`;
-
+        const labelValue = indicator.key === "carbon" ? `${value.toFixed(1)} (emissions)` : `${value.toFixed(1)}`;
         return `<span class="status-badge ${state}">${indicator.label}: ${labelValue} - ${state}</span>`;
       })
       .join("");
 
     this.elements.statusBadges.innerHTML = html;
+  }
+
+  renderProjections(snapshot) {
+    const targets = [
+      { key: "air", label: "Air" },
+      { key: "water", label: "Water" },
+      { key: "carbon", label: "Carbon" },
+      { key: "health", label: "Health" }
+    ];
+
+    const html = targets
+      .map((target) => {
+        const projection = snapshot.projections?.[target.key];
+        if (!projection) {
+          return `<li>${target.label}: n/a</li>`;
+        }
+
+        const values = projection.nextValues.map((value) => value.toFixed(1)).join(" -> ");
+        const warning = projection.warning ? "<span class=\"projection-warning\"> critical risk</span>" : "";
+        return `<li>${target.label}: ${values}${warning}</li>`;
+      })
+      .join("");
+
+    this.elements.projectionList.innerHTML = html;
   }
 
   renderStakeholders(snapshot) {
@@ -275,6 +329,7 @@ export class UIManager {
       .map(([track, level]) => {
         const width = clamp(level / 3, 0, 1) * 100;
         const cls = level < 1 ? "low" : level < 3 ? "mid" : "high";
+
         return `
           <li class="upgrade-row">
             <span>${TRACK_LABELS[track] || track}</span>
@@ -304,47 +359,57 @@ export class UIManager {
       .slice(0, 8)
       .map((entry) => {
         const date = new Date(entry.date).toLocaleDateString();
-        return `<li>${entry.result.toUpperCase()} | ${entry.difficulty} | Year ${entry.year} | Score ${entry.score} | ${date}</li>`;
+        return `<li>${entry.result.toUpperCase()} | ${entry.difficulty} | Year ${entry.year} | Score ${Number(entry.score).toFixed(2)} | ${date}</li>`;
       })
       .join("");
 
     this.elements.leaderboardList.innerHTML = entries || "<li>No completed games yet.</li>";
   }
 
-  updatePolicyContainers(policies, policyResolvedCycle) {
-    if (!this.state) {
-      this.renderPolicyCards(this.elements.policyCards, policies, false, false, 0);
-      this.renderPolicyCards(this.elements.policyCardsMobile, policies, false, false, 0);
+  updatePolicyContainers(snapshot) {
+    if (!snapshot) {
       return;
     }
 
-    const disabled = this.state.gameStatus !== "running" || policyResolvedCycle;
+    const disabled = snapshot.gameStatus !== "running" || snapshot.policyResolvedCycle;
+
+    if (snapshot.majorDecision) {
+      this.renderDecisionCards(this.elements.policyCards, snapshot.majorDecision, disabled);
+      this.renderDecisionCards(this.elements.policyCardsMobile, snapshot.majorDecision, disabled);
+      return;
+    }
+
     this.renderPolicyCards(
       this.elements.policyCards,
-      policies,
+      snapshot.currentPolicies,
       disabled,
-      policyResolvedCycle,
-      this.state.budget
+      snapshot.policyResolvedCycle,
+      snapshot.budget,
+      snapshot.policyCooldowns
     );
+
     this.renderPolicyCards(
       this.elements.policyCardsMobile,
-      policies,
+      snapshot.currentPolicies,
       disabled,
-      policyResolvedCycle,
-      this.state.budget
+      snapshot.policyResolvedCycle,
+      snapshot.budget,
+      snapshot.policyCooldowns
     );
   }
 
-  renderPolicyCards(container, policies, disabled, policyResolvedCycle, budget) {
+  renderPolicyCards(container, policies, disabled, policyResolvedCycle, budget, cooldowns = {}) {
     if (!policies.length) {
-      container.innerHTML = "<p class=\"disabled-note\">No policies available.</p>";
+      container.innerHTML = "<p class=\"disabled-note\">No policies available this cycle.</p>";
       return;
     }
 
     const html = policies
       .map((policy) => {
         const canAfford = budget >= policy.cost;
-        const buttonDisabled = disabled || !canAfford;
+        const cooldown = cooldowns[policy.id] || 0;
+        const buttonDisabled = disabled || !canAfford || cooldown > 0;
+
         const impacts = Object.entries(policy.impacts)
           .map(([key, value]) => {
             const label = IMPACT_LABELS[key] || key;
@@ -363,17 +428,53 @@ export class UIManager {
           })
           .join(" | ");
 
+        const immediatePct = Math.round((policy.effectTiming?.immediatePercent ?? 0.3) * 100);
+        const rampCycles = policy.effectTiming?.rampCycles ?? 3;
+        const cooldownLabel = policy.cooldownCycles ?? 3;
+
         return `
           <article class="policy-card">
             <h3>${policy.title}</h3>
             <p>${policy.description}</p>
             <div class="cost-line">Cost: $${policy.cost}M</div>
+            <span class="policy-meta">Ramp ${immediatePct}% to 100% in ${rampCycles} cycles</span>
+            <span class="policy-meta">Cooldown ${cooldownLabel} cycles</span>
             <div class="impact-grid">${impacts}</div>
             <p>Stakeholders: ${stakeholders}</p>
             <div class="actions">
               <button class="primary-btn" data-policy-id="${policy.id}" ${buttonDisabled ? "disabled" : ""}>
-                ${policyResolvedCycle ? "Policy Locked" : canAfford ? "Enact Policy" : "Insufficient Budget"}
+                ${policyResolvedCycle ? "Policy Locked" : cooldown > 0 ? `Cooldown (${cooldown})` : canAfford ? "Enact Policy" : "Insufficient Budget"}
               </button>
+            </div>
+          </article>
+        `;
+      })
+      .join("");
+
+    container.innerHTML = html;
+  }
+
+  renderDecisionCards(container, majorDecision, disabled) {
+    const html = majorDecision.options
+      .map((option) => {
+        const modifierText = (option.globalModifiers || []).map((item) => item.label || item.type).join(" | ");
+        const stakeholders = Object.entries(option.stakeholders || {})
+          .map(([key, value]) => {
+            const name = key === "ngo" ? "NGO" : key[0].toUpperCase() + key.slice(1);
+            const sign = value >= 0 ? "+" : "";
+            return `${name} ${sign}${value}`;
+          })
+          .join(" | ");
+
+        return `
+          <article class="policy-card decision-card">
+            <h3>${option.title}</h3>
+            <p>${option.description}</p>
+            <span class="policy-meta">${majorDecision.title}</span>
+            <p>Stakeholders: ${stakeholders || "No direct shift"}</p>
+            <p>${modifierText || "No timed global modifiers"}</p>
+            <div class="actions">
+              <button class="primary-btn" data-major-option-id="${option.id}" ${disabled ? "disabled" : ""}>Choose Option</button>
             </div>
           </article>
         `;
@@ -390,6 +491,7 @@ export class UIManager {
           `<span class="legend-item"><span class="legend-color" style="background:${indicator.color}"></span>${indicator.label}</span>`
       )
       .join("");
+
     this.elements.chartLegend.innerHTML = legend;
   }
 
@@ -424,6 +526,35 @@ export class UIManager {
     this.elements.appShell.setAttribute("aria-hidden", "false");
   }
 
+  showGameoverModal(payload) {
+    const { gameoverModal, gameoverTitle, gameoverReason, scoreBreakdownList } = this.elements;
+    const label = payload.result === "win" ? "Victory" : "Defeat";
+
+    gameoverTitle.textContent = `${label} - Eco Defender`;
+    gameoverReason.textContent = payload.reason;
+
+    const breakdown = payload.scoreBreakdown;
+    if (breakdown) {
+      const component = breakdown.components;
+      scoreBreakdownList.innerHTML = `
+        <li>Final Score: <strong>${breakdown.finalScore.toFixed(2)}</strong></li>
+        <li>Environmental Avg: ${component.environmentalAverage.toFixed(2)} x ${breakdown.weights.environmentalAverage}</li>
+        <li>Economic Stability: ${component.economicStability.toFixed(2)} x ${breakdown.weights.economicStability}</li>
+        <li>Public Health: ${component.publicHealth.toFixed(2)} x ${breakdown.weights.publicHealth}</li>
+        <li>Carbon Efficiency: ${component.carbonEfficiency.toFixed(2)} x ${breakdown.weights.carbonEfficiency}</li>
+        <li>Stakeholder Balance: ${component.stakeholderBalance.toFixed(2)} x ${breakdown.weights.stakeholderBalance}</li>
+      `;
+    } else {
+      scoreBreakdownList.innerHTML = "<li>No score breakdown available.</li>";
+    }
+
+    gameoverModal.classList.remove("hidden");
+  }
+
+  hideGameoverModal() {
+    this.elements.gameoverModal.classList.add("hidden");
+  }
+
   showBanner(message) {
     const { eventBanner } = this.elements;
     eventBanner.textContent = message;
@@ -456,7 +587,7 @@ export class UIManager {
     }, 2200);
   }
 
-  formatBudget(value) {
+  formatMoney(value) {
     const rounded = Math.round(value);
     const sign = rounded < 0 ? "-" : "";
     return `${sign}$${Math.abs(rounded)}M`;

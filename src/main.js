@@ -14,7 +14,7 @@ uiManager.init();
 uiManager.showStartModal();
 
 const updateResumeAvailability = () => {
-  const hasSave = Boolean(localStorage.getItem(STORAGE_KEYS.save));
+  const hasSave = Boolean(localStorage.getItem(STORAGE_KEYS.save) || localStorage.getItem(STORAGE_KEYS.saveLegacy));
   uiManager.elements.startResumeBtn.disabled = !hasSave;
 };
 

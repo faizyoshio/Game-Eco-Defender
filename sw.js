@@ -1,4 +1,4 @@
-const CACHE_NAME = "eco-defender-cache-v1";
+const CACHE_NAME = "eco-defender-cache-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -6,6 +6,8 @@ const ASSETS = [
   "./manifest.webmanifest",
   "./src/main.js",
   "./src/data.js",
+  "./src/policy.js",
+  "./src/events.js",
   "./src/simulation.js",
   "./src/render.js",
   "./src/ui.js",

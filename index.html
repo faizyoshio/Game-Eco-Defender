@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#27452f" />
-  <meta name="description" content="Eco Defender is a web based strategy simulation game that places you in the role of a city environmental manager. Your responsibility is to balance economic growth, population expansion, and environmental sustainability within a tightly connected system. Every policy decision directly affects air quality, water quality, soil health, public health, and carbon emissions. Expanding industry can increase economic output but also raise pollution levels and disease risk. Aggressive environmental regulation can reduce emissions but may weaken industrial performance and strain the city budget. You must evaluate trade offs carefully. The game operates using measurable indicators on a 0 to 100 scale. Environmental and health conditions are categorized into safe, moderate, unhealthy, and critical levels based on public health principles inspired by standards from the World Health Organization. If environmental or health indicators remain in the critical zone for too long, the city enters crisis and the game ends. Eco Defender goes beyond survival mechanics. High carbon emissions increase climate risks. Uncontrolled debt reduces economic stability. Low stakeholder satisfaction among citizens, industry, or environmental groups triggers protests, penalties, and audits. Long term strategy matters more than short term gains. The interface is lightweight, responsive, and fully playable in a browser without installation. The city visually reflects environmental conditions. Heavy air pollution creates smog overlays. Contaminated water changes river color. Degraded soil alters the landscape. All systems update in real time through a structured simulation engine. Eco Defender is designed for players who enjoy policy strategy, city management, and sustainability challenges. Each session presents dynamic conditions that require analytical thinking and long term planning. Your objective is clear. Build a resilient city with strong economic performance while protecting public health and the environment." />
+  <meta name="description" content="Eco Defender V2: a browser strategy simulation for environmental governance, fiscal risk, and sustainable city management." />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./assets/icons/icon-192.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="./styles.css" />
@@ -48,6 +48,14 @@
           <span class="label">Population</span>
           <span class="value" id="population-value">0</span>
         </div>
+        <div class="stat-item">
+          <span class="label">Debt</span>
+          <span class="value" id="debt-value">$0M</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Interest/Cycle</span>
+          <span class="value" id="interest-value">$0M</span>
+        </div>
       </div>
 
       <div class="top-controls">
@@ -85,6 +93,11 @@
             <canvas id="chart-canvas" width="500" height="280"></canvas>
             <div id="chart-legend" class="chart-legend"></div>
 
+            <div class="card projection-card">
+              <h3>2-Cycle Projection</h3>
+              <ul id="projection-list"></ul>
+            </div>
+
             <div class="subgrid">
               <div class="card">
                 <h3>Stakeholders</h3>
@@ -109,7 +122,7 @@
 
           <section class="panel policy-panel-mobile" data-panel="policies">
             <div class="policy-header">
-              <h2>Policy Choices</h2>
+              <h2 id="policy-title-mobile">Policy Choices</h2>
               <button id="skip-policy-mobile" class="ghost-btn" type="button">Skip Cycle</button>
             </div>
             <div id="policy-cards-mobile" class="policy-cards"></div>
@@ -120,11 +133,25 @@
 
     <section class="policy-section" id="policy-section">
       <div class="policy-header">
-        <h2>Policy Choices</h2>
+        <h2 id="policy-title">Policy Choices</h2>
         <button id="skip-policy" class="ghost-btn" type="button">Skip Cycle</button>
       </div>
       <div id="policy-cards" class="policy-cards"></div>
     </section>
+  </div>
+
+  <div class="gameover-modal hidden" id="gameover-modal" aria-modal="true" role="dialog">
+    <div class="modal-card">
+      <h2 id="gameover-title">Simulation Complete</h2>
+      <p id="gameover-reason"></p>
+      <div class="card score-breakdown-card">
+        <h3>Sustainability Index Breakdown</h3>
+        <ul id="score-breakdown-list"></ul>
+      </div>
+      <div class="modal-actions">
+        <button id="gameover-close-btn" class="primary-btn" type="button">Close</button>
+      </div>
+    </div>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

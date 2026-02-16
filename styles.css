@@ -89,7 +89,7 @@ button {
 
 .top-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(80px, 1fr));
+  grid-template-columns: repeat(5, minmax(80px, 1fr));
   gap: 8px;
 }
 
@@ -354,9 +354,25 @@ button {
 }
 
 #stakeholder-list,
-#upgrade-list {
+#upgrade-list,
+#projection-list {
   display: grid;
   gap: 7px;
+}
+
+#projection-list li {
+  font-size: 0.76rem;
+  border-bottom: 1px dashed #d9e4d2;
+  padding-bottom: 4px;
+}
+
+#projection-list li:last-child {
+  border-bottom: 0;
+}
+
+.projection-warning {
+  color: var(--critical);
+  font-weight: 700;
 }
 
 .stakeholder-row,
@@ -497,6 +513,22 @@ button {
   color: #a2453d;
 }
 
+.policy-card.decision-card {
+  border-color: #8cb594;
+  background: linear-gradient(155deg, #f4ffef 0%, #e5f3dd 100%);
+}
+
+.policy-meta {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid #cddac5;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  color: #31503a;
+  background: #f7fdf3;
+}
+
 .start-modal {
   position: fixed;
   inset: 0;
@@ -534,6 +566,25 @@ button {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.gameover-modal {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(160deg, rgba(20, 39, 27, 0.62), rgba(25, 48, 33, 0.78));
+  z-index: 18;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+}
+
+.score-breakdown-card ul {
+  display: grid;
+  gap: 5px;
+}
+
+.score-breakdown-card li {
+  font-size: 0.8rem;
 }
 
 .toast {
@@ -592,7 +643,7 @@ button {
   }
 
   .top-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .content-grid {
@@ -658,7 +709,7 @@ button {
 
 @media (max-width: 620px) {
   .top-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .subgrid {

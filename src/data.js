@@ -1,5 +1,5 @@
 export const GAME_DATA = {
-  version: "1.0.0",
+  version: "2.0.0",
   timing: {
     cycleMs: 3000,
     cyclesPerYear: 12,
@@ -15,7 +15,7 @@ export const GAME_DATA = {
     ],
     targetFloor: 50,
     criticalFloor: 25,
-    // Inspired by WHO guidance bands; scores are normalized to game scale where higher means cleaner air/water.
+    // WHO-inspired reference points mapped to game scale.
     whoInspired: {
       air: {
         safePm25Upper: 15,
@@ -28,6 +28,69 @@ export const GAME_DATA = {
         moderateContaminationPercent: 25,
         unhealthyContaminationPercent: 45,
         criticalContaminationPercent: 45
+      }
+    }
+  },
+  systems: {
+    fiscal: {
+      interestRates: {
+        casual: 0.02,
+        realistic: 0.03,
+        crisis: 0.04
+      },
+      debtToAnnualRevenuePenaltyThreshold: 1.5,
+      investorEconomyPenalty: 0.15,
+      investorIndustryHit: 10,
+      debtInterestPenaltyScale: 0.38,
+      debtInterestPenaltyCap: 0.35,
+      debtRepaymentShare: 0.18
+    },
+    tippingPoints: {
+      air: {
+        threshold: 15,
+        cycles: 3,
+        healthCapDrop: 10,
+        minHealthCap: 50
+      },
+      carbon: {
+        threshold: 85,
+        cycles: 5,
+        soilCapDrop: 10,
+        minSoilCap: 45
+      },
+      water: {
+        threshold: 15,
+        cycles: 3,
+        populationGrowthMultiplierDrop: 0.2,
+        minPopulationGrowthMultiplier: 0.35
+      }
+    },
+    stakeholderDynamics: {
+      citizensLowThreshold: 30,
+      citizensLowRevenuePenalty: 0.1,
+      citizensLowProtestBoost: 0.2,
+      citizensHighThreshold: 80,
+      citizensHighRecovery: {
+        air: 2,
+        water: 2,
+        durationCycles: 2
+      },
+      industryLowThreshold: 30,
+      industryLowEconomyPenalty: 0.15,
+      ngoLowThreshold: 30,
+      ngoFineProbabilityBoost: 0.25
+    },
+    projections: {
+      windowCycles: 6,
+      horizonCycles: 2
+    },
+    scoring: {
+      weights: {
+        environmentalAverage: 0.3,
+        economicStability: 0.25,
+        publicHealth: 0.2,
+        carbonEfficiency: 0.15,
+        stakeholderBalance: 0.1
       }
     }
   },
@@ -101,6 +164,13 @@ export const GAME_DATA = {
     { key: "industry", label: "Industry" },
     { key: "ngo", label: "Environmental NGO" }
   ],
+  policyDefaults: {
+    effectTiming: {
+      immediatePercent: 0.3,
+      rampCycles: 3
+    },
+    cooldownCycles: 3
+  },
   upgrades: {
     wasteTreatment: [
       { level: 0, waterDecayMultiplier: 1, economyDrainMultiplier: 1 },
@@ -128,7 +198,9 @@ export const GAME_DATA = {
       description: "Expand manufacturing output and tax base, but increase emissions and pollution load.",
       cost: 38,
       impacts: { economy: 9, air: -7, water: -4, soil: -5, carbon: 8 },
-      stakeholders: { citizens: -4, industry: 10, ngo: -8 }
+      stakeholders: { citizens: -4, industry: 10, ngo: -8 },
+      effectTiming: { immediatePercent: 0.5, rampCycles: 2 },
+      cooldownCycles: 4
     },
     {
       id: "waste_l1",
@@ -137,7 +209,9 @@ export const GAME_DATA = {
       cost: 26,
       impacts: { economy: 2, air: 0, water: 6, soil: 2, carbon: -1 },
       stakeholders: { citizens: 4, industry: -1, ngo: 6 },
-      upgrade: { track: "wasteTreatment", level: 1 }
+      upgrade: { track: "wasteTreatment", level: 1 },
+      effectTiming: { immediatePercent: 0.35, rampCycles: 3 },
+      cooldownCycles: 3
     },
     {
       id: "waste_l2",
@@ -147,7 +221,9 @@ export const GAME_DATA = {
       impacts: { economy: 1, air: 0, water: 8, soil: 2, carbon: -1 },
       stakeholders: { citizens: 4, industry: -2, ngo: 7 },
       upgrade: { track: "wasteTreatment", level: 2 },
-      requires: { wasteTreatment: 1 }
+      requires: { wasteTreatment: 1 },
+      effectTiming: { immediatePercent: 0.3, rampCycles: 3 },
+      cooldownCycles: 4
     },
     {
       id: "waste_l3",
@@ -157,7 +233,9 @@ export const GAME_DATA = {
       impacts: { economy: 1, air: 0, water: 10, soil: 3, carbon: -2 },
       stakeholders: { citizens: 5, industry: -3, ngo: 8 },
       upgrade: { track: "wasteTreatment", level: 3 },
-      requires: { wasteTreatment: 2 }
+      requires: { wasteTreatment: 2 },
+      effectTiming: { immediatePercent: 0.25, rampCycles: 4 },
+      cooldownCycles: 5
     },
     {
       id: "renew_l1",
@@ -166,7 +244,9 @@ export const GAME_DATA = {
       cost: 30,
       impacts: { economy: 3, air: 5, water: 1, soil: 1, carbon: -7 },
       stakeholders: { citizens: 4, industry: -1, ngo: 7 },
-      upgrade: { track: "renewableEnergy", level: 1 }
+      upgrade: { track: "renewableEnergy", level: 1 },
+      effectTiming: { immediatePercent: 0.3, rampCycles: 3 },
+      cooldownCycles: 3
     },
     {
       id: "renew_l2",
@@ -176,7 +256,9 @@ export const GAME_DATA = {
       impacts: { economy: 2, air: 6, water: 1, soil: 1, carbon: -9 },
       stakeholders: { citizens: 4, industry: -2, ngo: 7 },
       upgrade: { track: "renewableEnergy", level: 2 },
-      requires: { renewableEnergy: 1 }
+      requires: { renewableEnergy: 1 },
+      effectTiming: { immediatePercent: 0.3, rampCycles: 3 },
+      cooldownCycles: 4
     },
     {
       id: "renew_l3",
@@ -186,7 +268,9 @@ export const GAME_DATA = {
       impacts: { economy: 1, air: 8, water: 2, soil: 1, carbon: -12 },
       stakeholders: { citizens: 5, industry: -3, ngo: 9 },
       upgrade: { track: "renewableEnergy", level: 3 },
-      requires: { renewableEnergy: 2 }
+      requires: { renewableEnergy: 2 },
+      effectTiming: { immediatePercent: 0.25, rampCycles: 4 },
+      cooldownCycles: 5
     },
     {
       id: "air_l1",
@@ -195,7 +279,9 @@ export const GAME_DATA = {
       cost: 24,
       impacts: { economy: 2, air: 5, water: 0, soil: 1, carbon: -1 },
       stakeholders: { citizens: 3, industry: -1, ngo: 5 },
-      upgrade: { track: "airFiltration", level: 1 }
+      upgrade: { track: "airFiltration", level: 1 },
+      effectTiming: { immediatePercent: 0.35, rampCycles: 3 },
+      cooldownCycles: 3
     },
     {
       id: "air_l2",
@@ -205,7 +291,9 @@ export const GAME_DATA = {
       impacts: { economy: 2, air: 7, water: 0, soil: 1, carbon: -1 },
       stakeholders: { citizens: 4, industry: -2, ngo: 6 },
       upgrade: { track: "airFiltration", level: 2 },
-      requires: { airFiltration: 1 }
+      requires: { airFiltration: 1 },
+      effectTiming: { immediatePercent: 0.3, rampCycles: 3 },
+      cooldownCycles: 4
     },
     {
       id: "air_l3",
@@ -215,7 +303,9 @@ export const GAME_DATA = {
       impacts: { economy: 1, air: 9, water: 0, soil: 1, carbon: -2 },
       stakeholders: { citizens: 5, industry: -3, ngo: 8 },
       upgrade: { track: "airFiltration", level: 3 },
-      requires: { airFiltration: 2 }
+      requires: { airFiltration: 2 },
+      effectTiming: { immediatePercent: 0.25, rampCycles: 4 },
+      cooldownCycles: 5
     },
     {
       id: "carbon_tax",
@@ -223,7 +313,9 @@ export const GAME_DATA = {
       description: "Price emissions to push industry toward cleaner production pathways.",
       cost: 8,
       impacts: { economy: -3, air: 4, water: 1, soil: 1, carbon: -6 },
-      stakeholders: { citizens: 1, industry: -8, ngo: 7 }
+      stakeholders: { citizens: 1, industry: -8, ngo: 7 },
+      effectTiming: { immediatePercent: 0.45, rampCycles: 3 },
+      cooldownCycles: 3
     },
     {
       id: "reforestation",
@@ -231,7 +323,9 @@ export const GAME_DATA = {
       description: "Replant peri-urban forests to absorb carbon and stabilize soil.",
       cost: 22,
       impacts: { economy: 1, air: 4, water: 2, soil: 6, carbon: -4 },
-      stakeholders: { citizens: 3, industry: -2, ngo: 8 }
+      stakeholders: { citizens: 3, industry: -2, ngo: 8 },
+      effectTiming: { immediatePercent: 0.3, rampCycles: 3 },
+      cooldownCycles: 3
     },
     {
       id: "green_transit",
@@ -239,7 +333,9 @@ export const GAME_DATA = {
       description: "Scale electric buses and rail links to reduce transport emissions.",
       cost: 28,
       impacts: { economy: 3, air: 5, water: 1, soil: 1, carbon: -5 },
-      stakeholders: { citizens: 5, industry: 1, ngo: 5 }
+      stakeholders: { citizens: 5, industry: 1, ngo: 5 },
+      effectTiming: { immediatePercent: 0.35, rampCycles: 3 },
+      cooldownCycles: 3
     },
     {
       id: "mining_project",
@@ -247,7 +343,9 @@ export const GAME_DATA = {
       description: "Short-term growth from extraction with high ecological externalities.",
       cost: 10,
       impacts: { economy: 8, air: -4, water: -8, soil: -10, carbon: 7 },
-      stakeholders: { citizens: -5, industry: 9, ngo: -10 }
+      stakeholders: { citizens: -5, industry: 9, ngo: -10 },
+      effectTiming: { immediatePercent: 0.55, rampCycles: 2 },
+      cooldownCycles: 5
     },
     {
       id: "agri_regeneration",
@@ -255,7 +353,9 @@ export const GAME_DATA = {
       description: "Support crop rotation and low-chemical farming to restore soil and water.",
       cost: 20,
       impacts: { economy: 2, air: 1, water: 3, soil: 7, carbon: -3 },
-      stakeholders: { citizens: 3, industry: -1, ngo: 6 }
+      stakeholders: { citizens: 3, industry: -1, ngo: 6 },
+      effectTiming: { immediatePercent: 0.3, rampCycles: 3 },
+      cooldownCycles: 3
     },
     {
       id: "wetlands",
@@ -263,9 +363,14 @@ export const GAME_DATA = {
       description: "Restore floodplains for natural filtration and climate resilience.",
       cost: 27,
       impacts: { economy: 1, air: 1, water: 7, soil: 4, carbon: -2 },
-      stakeholders: { citizens: 4, industry: -2, ngo: 7 }
+      stakeholders: { citizens: 4, industry: -2, ngo: 7 },
+      effectTiming: { immediatePercent: 0.3, rampCycles: 3 },
+      cooldownCycles: 4
     }
   ],
+  eventsConfig: {
+    triggerEveryCycles: 2
+  },
   events: [
     {
       id: "flood",
@@ -341,6 +446,18 @@ export const GAME_DATA = {
       diseaseModifier: 5
     },
     {
+      id: "environmental_fine",
+      title: "Environmental Fine",
+      description: "Regulators issue a compliance fine over pollution breaches.",
+      tags: ["fines", "policy"],
+      weight: 0.6,
+      duration: 1,
+      instant: { economy: -2 },
+      perCycle: {},
+      stakeholders: { citizens: -1, industry: -2, ngo: 2 },
+      budgetDelta: -10
+    },
+    {
       id: "green_grant",
       title: "International Green Grant",
       description: "External funding supports clean infrastructure modernization.",
@@ -364,12 +481,53 @@ export const GAME_DATA = {
       stakeholders: { citizens: 2, industry: 3, ngo: 2 },
       budgetDelta: 8
     }
-  ]
+  ],
+  globalDecisions: {
+    intervalYears: 5,
+    decisions: [
+      {
+        id: "international_climate_agreement",
+        title: "International Climate Agreement",
+        description: "Neighboring regions request a binding commitment to emission cuts.",
+        options: [
+          {
+            id: "commit",
+            title: "Commit",
+            description: "Adopt binding climate targets and transition plans.",
+            stakeholders: { citizens: 4, industry: -4, ngo: 10 },
+            globalModifiers: [
+              {
+                type: "carbonGrowthMultiplier",
+                multiplier: 0.8,
+                durationCycles: 60,
+                label: "Carbon growth -20% for 5 years"
+              },
+              {
+                type: "economyGrowthMultiplier",
+                multiplier: 0.9,
+                durationCycles: 24,
+                label: "Economy growth -10% for 2 years"
+              }
+            ]
+          },
+          {
+            id: "reject",
+            title: "Reject",
+            description: "Prioritize unrestricted domestic industry growth.",
+            stakeholders: { citizens: -2, industry: 10, ngo: -20 },
+            globalModifiers: []
+          }
+        ]
+      }
+    ]
+  }
 };
 
 export const STORAGE_KEYS = {
-  save: "eco-defender-save-v1",
-  leaderboard: "eco-defender-leaderboard-v1"
+  save: "eco-defender-save-v2",
+  saveLegacy: "eco-defender-save-v1",
+  leaderboard: "eco-defender-leaderboard-v2",
+  leaderboardLegacy: "eco-defender-leaderboard-v1"
 };
 
 export const UPGRADE_LABELS = {
