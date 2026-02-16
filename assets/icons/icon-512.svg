@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Eco Defender icon">
+  <defs>
+    <linearGradient id="bg512" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#eff8e6" />
+      <stop offset="100%" stop-color="#d4e8c8" />
+    </linearGradient>
+    <linearGradient id="leaf512" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#4ea95f" />
+      <stop offset="100%" stop-color="#2f7a45" />
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="url(#bg512)" stroke="#2e5f3f" stroke-width="18" />
+  <circle cx="256" cy="256" r="166" fill="#f7fff2" stroke="#5f8f62" stroke-width="14" />
+  <path d="M118 278c63 0 101-24 138-74 37 50 75 74 138 74-29 58-76 102-138 124-62-22-109-66-138-124z" fill="url(#leaf512)" />
+  <path d="M256 180v182" stroke="#f0ffe6" stroke-width="18" stroke-linecap="round" />
+  <path d="M256 254c-40-24-66-50-86-79" stroke="#f0ffe6" stroke-width="12" stroke-linecap="round" />
+  <path d="M256 287c37-23 64-48 84-76" stroke="#f0ffe6" stroke-width="12" stroke-linecap="round" />
+</svg>
