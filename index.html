@@ -65,6 +65,10 @@
           <option value="realistic" selected>Realistic</option>
           <option value="crisis">Crisis</option>
         </select>
+        <label class="toggle-inline" for="low-graphics-toggle">
+          <input id="low-graphics-toggle" type="checkbox" />
+          <span>Low Graphics</span>
+        </label>
         <button id="new-game-btn" class="ghost-btn">New</button>
         <button id="save-btn" class="ghost-btn">Save</button>
         <button id="load-btn" class="ghost-btn">Load</button>
@@ -83,40 +87,63 @@
 
       <aside class="analytics-section">
         <div class="mobile-tabs" id="mobile-tabs">
-          <button class="tab-btn active" data-panel="charts" type="button">Charts</button>
+          <button class="tab-btn active" data-panel="charts" type="button">Trends</button>
           <button class="tab-btn" data-panel="policies" type="button">Policies</button>
         </div>
 
         <div class="panel-track" id="panel-track">
           <section class="panel charts-panel" data-panel="charts">
-            <h2>Indicator Trends</h2>
-            <canvas id="chart-canvas" width="500" height="280"></canvas>
-            <div id="chart-legend" class="chart-legend"></div>
-
-            <div class="card projection-card">
-              <h3>2-Cycle Projection</h3>
-              <ul id="projection-list"></ul>
-            </div>
-
-            <div class="subgrid">
-              <div class="card">
-                <h3>Stakeholders</h3>
-                <div id="stakeholder-list"></div>
-              </div>
-              <div class="card">
-                <h3>Technology Upgrades</h3>
-                <ul id="upgrade-list"></ul>
+            <div class="panel-header">
+              <h2>Analytics</h2>
+              <div class="analytics-tabs" id="analytics-tabs" role="tablist" aria-label="Analytics views">
+                <button class="analytics-tab active" type="button" data-analytics-view="trends" role="tab" aria-selected="true">
+                  Trends
+                </button>
+                <button class="analytics-tab" type="button" data-analytics-view="stakeholders" role="tab" aria-selected="false">
+                  Stakeholders
+                </button>
+                <button class="analytics-tab" type="button" data-analytics-view="log" role="tab" aria-selected="false">
+                  Log
+                </button>
               </div>
             </div>
 
-            <div class="card log-card">
-              <h3>Event Log</h3>
-              <ul id="event-log"></ul>
+            <div class="analytics-view active" data-analytics-view="trends">
+              <div class="card chart-card">
+                <h3>Indicator Trends</h3>
+                <canvas id="chart-canvas" width="500" height="280"></canvas>
+                <div id="chart-legend" class="chart-legend"></div>
+              </div>
+
+              <div class="card projection-card">
+                <h3>2-Cycle Projection</h3>
+                <ul id="projection-list"></ul>
+              </div>
             </div>
 
-            <div class="card leaderboard-card">
-              <h3>Leaderboard</h3>
-              <ul id="leaderboard-list"></ul>
+            <div class="analytics-view" data-analytics-view="stakeholders">
+              <div class="subgrid">
+                <div class="card">
+                  <h3>Stakeholders</h3>
+                  <div id="stakeholder-list"></div>
+                </div>
+                <div class="card">
+                  <h3>Technology Upgrades</h3>
+                  <ul id="upgrade-list"></ul>
+                </div>
+              </div>
+            </div>
+
+            <div class="analytics-view" data-analytics-view="log">
+              <div class="card log-card">
+                <h3>Event Log</h3>
+                <ul id="event-log"></ul>
+              </div>
+
+              <div class="card leaderboard-card">
+                <h3>Leaderboard</h3>
+                <ul id="leaderboard-list"></ul>
+              </div>
             </div>
           </section>
 
@@ -150,6 +177,28 @@
       </div>
       <div class="modal-actions">
         <button id="gameover-close-btn" class="primary-btn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="policy-modal hidden" id="policy-modal" aria-modal="true" role="dialog">
+    <div class="modal-card policy-detail-card" tabindex="-1">
+      <div class="modal-toolbar">
+        <h2 id="policy-modal-title">Policy Details</h2>
+        <button id="policy-modal-close-icon" class="icon-btn ghost-btn" type="button" aria-label="Close policy details">×</button>
+      </div>
+      <p id="policy-modal-summary"></p>
+      <div id="policy-modal-meta" class="policy-modal-meta"></div>
+      <div class="modal-section">
+        <h3>Impacts</h3>
+        <div id="policy-modal-impacts" class="impact-grid"></div>
+      </div>
+      <div class="modal-section">
+        <h3>Stakeholders</h3>
+        <p id="policy-modal-stakeholders"></p>
+      </div>
+      <div class="modal-actions">
+        <button id="policy-modal-close-btn" class="secondary-btn" type="button">Close</button>
       </div>
     </div>
   </div>

@@ -4,6 +4,10 @@ import { EventSystem } from "./events.js";
 import { PolicySystem } from "./policy.js";
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const toFiniteNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
 
 class DeterministicRng {
   constructor(seed) {
@@ -131,9 +135,9 @@ export class SimulationEngine {
     this.captureHistory();
     this.computeProjections();
     this.state.currentPolicies = this.policySystem.drawPolicies(this.state, this.rng);
+    this.pushLog("New game started.", "system");
     this.startLoop();
     this.emitState();
-    this.pushLog("New game started.", "system");
   }
 
   startLoop() {
@@ -545,6 +549,10 @@ export class SimulationEngine {
   }
 
   canAffordPolicy(policyId) {
+    if (!this.state) {
+      return false;
+    }
+
     const policy = this.state.currentPolicies.find((item) => item.id === policyId);
     if (!policy) {
       return false;
@@ -648,6 +656,7 @@ export class SimulationEngine {
     const indicators = this.state.indicators;
     const criticalFloor = this.data.thresholds.criticalFloor;
     const targetFloor = this.data.thresholds.targetFloor;
+    const criticalCyclesToLose = this.data.timing.criticalCyclesToLose;
 
     const carbonSafety = 100 - indicators.carbon;
     const monitored = {
@@ -667,12 +676,19 @@ export class SimulationEngine {
     });
 
     const losingMetric = Object.entries(this.state.criticalStreaks).find(
-      ([, streak]) => streak >= this.data.timing.criticalCyclesToLose
+      ([, streak]) => streak >= criticalCyclesToLose
     );
 
     if (losingMetric) {
-      const metricLabel = losingMetric[0] === "carbonSafety" ? "Carbon Emissions" : losingMetric[0];
-      this.finishGame("loss", `${metricLabel} remained in critical range for 3 cycles.`);
+      const metricLabels = {
+        air: "Air Quality",
+        water: "Water Quality",
+        soil: "Soil Quality",
+        health: "Public Health",
+        carbonSafety: "Carbon Emissions"
+      };
+      const metricLabel = metricLabels[losingMetric[0]] || losingMetric[0];
+      this.finishGame("loss", `${metricLabel} remained in critical range for ${criticalCyclesToLose} cycles.`);
       return;
     }
 
@@ -774,7 +790,13 @@ export class SimulationEngine {
     leaderboard.push(entry);
     leaderboard.sort((a, b) => b.score - a.score);
     const trimmed = leaderboard.slice(0, 10);
-    localStorage.setItem(STORAGE_KEYS.leaderboard, JSON.stringify(trimmed));
+
+    try {
+      localStorage.setItem(STORAGE_KEYS.leaderboard, JSON.stringify(trimmed));
+    } catch (error) {
+      // Keep in-memory flow alive even when storage is unavailable.
+    }
+
     return entry;
   }
 
@@ -882,13 +904,14 @@ export class SimulationEngine {
   }
 
   classifyIndicator(key, value) {
-    let score = value;
+    let score = toFiniteNumber(value, 0);
     if (key === "carbon") {
-      score = 100 - value;
+      score = 100 - score;
     }
 
-    const band = this.data.thresholds.bands.find((item) => score >= item.min && score <= item.max);
-    return band?.key || "critical";
+    const orderedBands = [...this.data.thresholds.bands].sort((a, b) => b.min - a.min);
+    const band = orderedBands.find((item) => score >= item.min);
+    return band?.key || orderedBands[orderedBands.length - 1]?.key || "critical";
   }
 
   getPopulationAbsolute() {
@@ -980,44 +1003,132 @@ export class SimulationEngine {
       }
     };
 
-    localStorage.setItem(STORAGE_KEYS.save, JSON.stringify(payload));
-    return { ok: true, message: "Game saved." };
+    try {
+      localStorage.setItem(STORAGE_KEYS.save, JSON.stringify(payload));
+      return { ok: true, message: "Game saved." };
+    } catch (error) {
+      return { ok: false, message: "Save failed: storage unavailable." };
+    }
   }
 
   normalizeLoadedState(rawState) {
+    const fallbackDifficulty = this.data.difficulty[rawState?.difficulty] ? rawState.difficulty : "realistic";
+    const diffCfg = this.data.difficulty[fallbackDifficulty];
+
+    const cycle = Math.max(0, Math.round(toFiniteNumber(rawState.cycle, 0)));
+    const yearFallback = Math.floor(cycle / this.data.timing.cyclesPerYear) + 1;
+    const year = Math.max(1, Math.round(toFiniteNumber(rawState.year, yearFallback)));
+
+    const indicatorDefaults = { ...diffCfg.initialIndicators };
+    const indicators = Object.fromEntries(
+      Object.entries(indicatorDefaults).map(([key, fallback]) => [
+        key,
+        clamp(toFiniteNumber(rawState.indicators?.[key], fallback), 0, 100)
+      ])
+    );
+
+    const stakeholders = {
+      citizens: clamp(toFiniteNumber(rawState.stakeholders?.citizens, 60), 0, 100),
+      industry: clamp(toFiniteNumber(rawState.stakeholders?.industry, 60), 0, 100),
+      ngo: clamp(toFiniteNumber(rawState.stakeholders?.ngo, 60), 0, 100)
+    };
+
+    const upgrades = Object.keys(this.data.upgrades).reduce((acc, track) => {
+      const maxLevel = Math.max(...this.data.upgrades[track].map((item) => item.level), 0);
+      acc[track] = clamp(Math.round(toFiniteNumber(rawState.upgrades?.[track], 0)), 0, maxLevel);
+      return acc;
+    }, {});
+
+    const status = rawState.gameStatus === "ended" ? "ended" : "running";
+
     const normalized = {
       ...rawState,
       version: this.data.version,
+      difficulty: fallbackDifficulty,
+      seed: toFiniteNumber(rawState.seed, Date.now()) >>> 0,
+      rngState: toFiniteNumber(rawState.rngState, rawState.seed || Date.now()) >>> 0,
+      cycle,
+      year,
+      budget: clamp(toFiniteNumber(rawState.budget, diffCfg.initialBudget), -9999, 9999),
+      policyResolvedCycle: Boolean(rawState.policyResolvedCycle),
+      currentPolicies: Array.isArray(rawState.currentPolicies) ? rawState.currentPolicies : [],
+      indicators,
+      stakeholders,
+      upgrades,
+      history: Array.isArray(rawState.history)
+        ? rawState.history
+            .slice(-180)
+            .map((entry) => ({
+              cycle: Math.max(0, Math.round(toFiniteNumber(entry?.cycle, cycle))),
+              year: Math.max(1, Math.round(toFiniteNumber(entry?.year, year))),
+              population: clamp(toFiniteNumber(entry?.population, indicators.population), 0, 100),
+              economy: clamp(toFiniteNumber(entry?.economy, indicators.economy), 0, 100),
+              air: clamp(toFiniteNumber(entry?.air, indicators.air), 0, 100),
+              water: clamp(toFiniteNumber(entry?.water, indicators.water), 0, 100),
+              soil: clamp(toFiniteNumber(entry?.soil, indicators.soil), 0, 100),
+              health: clamp(toFiniteNumber(entry?.health, indicators.health), 0, 100),
+              carbon: clamp(toFiniteNumber(entry?.carbon, indicators.carbon), 0, 100)
+            }))
+        : [],
+      logs: Array.isArray(rawState.logs)
+        ? rawState.logs.slice(0, 40).map((entry) => ({
+            cycle: Math.max(0, Math.round(toFiniteNumber(entry?.cycle, cycle))),
+            year: Math.max(1, Math.round(toFiniteNumber(entry?.year, year))),
+            message: entry?.message ? String(entry.message) : "",
+            type: entry?.type ? String(entry.type) : "info",
+            timestamp: Math.max(0, Math.round(toFiniteNumber(entry?.timestamp, Date.now())))
+          }))
+        : [],
       policyCooldowns: rawState.policyCooldowns || {},
-      activePolicyEffects: rawState.activePolicyEffects || [],
-      globalModifiers: rawState.globalModifiers || [],
+      activePolicyEffects: Array.isArray(rawState.activePolicyEffects) ? rawState.activePolicyEffects : [],
+      activeEvents: Array.isArray(rawState.activeEvents) ? rawState.activeEvents : [],
+      eventCooldown: Math.max(0, Math.round(toFiniteNumber(rawState.eventCooldown, 0))),
+      globalModifiers: Array.isArray(rawState.globalModifiers) ? rawState.globalModifiers : [],
       majorDecision: rawState.majorDecision || null,
-      lastMajorDecisionCycle: rawState.lastMajorDecisionCycle || 0,
+      lastMajorDecisionCycle: Math.max(0, Math.round(toFiniteNumber(rawState.lastMajorDecisionCycle, 0))),
       finance: {
-        debt: rawState.finance?.debt || 0,
-        lastInterestCharge: rawState.finance?.lastInterestCharge || 0,
-        lastDebtPayment: rawState.finance?.lastDebtPayment || 0,
-        lastRevenue: rawState.finance?.lastRevenue || 0,
-        annualRevenueEstimate: rawState.finance?.annualRevenueEstimate || 200,
-        annualRevenueWindow: rawState.finance?.annualRevenueWindow || [],
-        debtToRevenueRatio: rawState.finance?.debtToRevenueRatio || 0,
-        investorPenaltyActive: rawState.finance?.investorPenaltyActive || false
+        debt: Math.max(0, toFiniteNumber(rawState.finance?.debt, 0)),
+        lastInterestCharge: Math.max(0, toFiniteNumber(rawState.finance?.lastInterestCharge, 0)),
+        lastDebtPayment: Math.max(0, toFiniteNumber(rawState.finance?.lastDebtPayment, 0)),
+        lastRevenue: Math.max(0, toFiniteNumber(rawState.finance?.lastRevenue, 0)),
+        annualRevenueEstimate: Math.max(1, toFiniteNumber(rawState.finance?.annualRevenueEstimate, 200)),
+        annualRevenueWindow: Array.isArray(rawState.finance?.annualRevenueWindow)
+          ? rawState.finance.annualRevenueWindow
+              .map((value) => Math.max(0, toFiniteNumber(value, 0)))
+              .slice(-this.data.timing.cyclesPerYear)
+          : [],
+        debtToRevenueRatio: Math.max(0, toFiniteNumber(rawState.finance?.debtToRevenueRatio, 0)),
+        investorPenaltyActive: Boolean(rawState.finance?.investorPenaltyActive)
       },
       stakeholderDynamics: {
-        highCitizenRecoveryCycles: rawState.stakeholderDynamics?.highCitizenRecoveryCycles || 0,
-        citizensWereHigh: rawState.stakeholderDynamics?.citizensWereHigh || false
+        highCitizenRecoveryCycles: Math.max(
+          0,
+          Math.round(toFiniteNumber(rawState.stakeholderDynamics?.highCitizenRecoveryCycles, 0))
+        ),
+        citizensWereHigh: Boolean(rawState.stakeholderDynamics?.citizensWereHigh)
       },
       tipping: {
-        healthCap: rawState.tipping?.healthCap || 100,
-        soilCap: rawState.tipping?.soilCap || 100,
-        populationGrowthMultiplier: rawState.tipping?.populationGrowthMultiplier || 1,
+        healthCap: clamp(toFiniteNumber(rawState.tipping?.healthCap, 100), 0, 100),
+        soilCap: clamp(toFiniteNumber(rawState.tipping?.soilCap, 100), 0, 100),
+        populationGrowthMultiplier: clamp(toFiniteNumber(rawState.tipping?.populationGrowthMultiplier, 1), 0.1, 1),
         streaks: {
-          lowAir: rawState.tipping?.streaks?.lowAir || 0,
-          lowWater: rawState.tipping?.streaks?.lowWater || 0,
-          highCarbon: rawState.tipping?.streaks?.highCarbon || 0
+          lowAir: Math.max(0, Math.round(toFiniteNumber(rawState.tipping?.streaks?.lowAir, 0))),
+          lowWater: Math.max(0, Math.round(toFiniteNumber(rawState.tipping?.streaks?.lowWater, 0))),
+          highCarbon: Math.max(0, Math.round(toFiniteNumber(rawState.tipping?.streaks?.highCarbon, 0)))
         }
       },
       projections: rawState.projections || {},
+      stabilityCycles: Math.max(0, Math.round(toFiniteNumber(rawState.stabilityCycles, 0))),
+      criticalStreaks: {
+        air: Math.max(0, Math.round(toFiniteNumber(rawState.criticalStreaks?.air, 0))),
+        water: Math.max(0, Math.round(toFiniteNumber(rawState.criticalStreaks?.water, 0))),
+        soil: Math.max(0, Math.round(toFiniteNumber(rawState.criticalStreaks?.soil, 0))),
+        health: Math.max(0, Math.round(toFiniteNumber(rawState.criticalStreaks?.health, 0))),
+        carbonSafety: Math.max(0, Math.round(toFiniteNumber(rawState.criticalStreaks?.carbonSafety, 0)))
+      },
+      gameStatus: status,
+      result: status === "ended" ? rawState.result || null : null,
+      resultReason: status === "ended" ? rawState.resultReason || "" : "",
       scoreBreakdown: rawState.scoreBreakdown || null
     };
 
@@ -1047,16 +1158,21 @@ export class SimulationEngine {
         this.rng = new DeterministicRng(this.state.seed || Date.now());
         this.rng.state = this.state.rngState || this.rng.seed;
 
+        if (!this.state.history.length) {
+          this.captureHistory();
+        }
         this.computeProjections();
 
         if (this.state.gameStatus === "running") {
           this.startLoop();
+          if (!this.state.majorDecision) {
+            this.state.currentPolicies = this.policySystem.drawPolicies(this.state, this.rng);
+          } else {
+            this.state.currentPolicies = [];
+          }
         } else {
           this.stopLoop();
-        }
-
-        if (!this.state.majorDecision) {
-          this.state.currentPolicies = this.policySystem.drawPolicies(this.state, this.rng);
+          this.state.currentPolicies = [];
         }
 
         this.emitState();

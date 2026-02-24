@@ -162,6 +162,7 @@ export class EventSystem {
     if (context.citizensLow) {
       chance += 0.03;
     }
+    chance = clamp(chance, 0, 0.95);
 
     if (rng.next() > chance) {
       return;

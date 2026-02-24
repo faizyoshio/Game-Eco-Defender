@@ -32,6 +32,11 @@ const rgbStringToObject = (rgbString) => {
   };
 };
 
+const hexToRgba = (hex, alpha = 1) => {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 export class RenderEngine {
   constructor(cityCanvas, chartCanvas, gameData) {
     this.cityCanvas = cityCanvas;
@@ -42,14 +47,44 @@ export class RenderEngine {
 
     this.lastChartCycle = -1;
     this.needsChartResize = true;
+    this.needsChartRedraw = true;
     this.lastCityWidth = 0;
     this.lastCityHeight = 0;
+
+    this.chartDisplayOptions = {
+      focusIndicator: null,
+      visibility: Object.fromEntries(this.data.indicators.map((indicator) => [indicator.key, true]))
+    };
   }
 
   resize() {
     this.resizeCanvas(this.cityCanvas);
     this.resizeCanvas(this.chartCanvas);
     this.needsChartResize = true;
+    this.needsChartRedraw = true;
+  }
+
+  setChartDisplayOptions(options = {}) {
+    const nextFocus = options.focusIndicator ?? null;
+    const nextVisibility = {
+      ...this.chartDisplayOptions.visibility,
+      ...(options.visibility || {})
+    };
+
+    const focusChanged = nextFocus !== this.chartDisplayOptions.focusIndicator;
+    const visibilityChanged = Object.keys(nextVisibility).some(
+      (key) => nextVisibility[key] !== this.chartDisplayOptions.visibility[key]
+    );
+
+    if (!focusChanged && !visibilityChanged) {
+      return;
+    }
+
+    this.chartDisplayOptions = {
+      focusIndicator: nextFocus,
+      visibility: nextVisibility
+    };
+    this.needsChartRedraw = true;
   }
 
   resizeCanvas(canvas) {
@@ -71,10 +106,11 @@ export class RenderEngine {
 
     this.drawCity(snapshot, nowMs);
 
-    if (this.needsChartResize || snapshot.cycle !== this.lastChartCycle) {
+    if (this.needsChartResize || this.needsChartRedraw || snapshot.cycle !== this.lastChartCycle) {
       this.drawChart(snapshot);
       this.lastChartCycle = snapshot.cycle;
       this.needsChartResize = false;
+      this.needsChartRedraw = false;
     }
   }
 
@@ -289,10 +325,13 @@ export class RenderEngine {
     const plotWidth = width - padding.left - padding.right;
     const plotHeight = height - padding.top - padding.bottom;
 
-    ctx.fillStyle = "#fbfdf8";
+    const chartGradient = ctx.createLinearGradient(0, 0, 0, height);
+    chartGradient.addColorStop(0, "rgba(247, 252, 250, 0.92)");
+    chartGradient.addColorStop(1, "rgba(233, 247, 243, 0.76)");
+    ctx.fillStyle = chartGradient;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.strokeStyle = "#dae6d1";
+    ctx.strokeStyle = "rgba(92, 132, 124, 0.22)";
     ctx.lineWidth = 1;
     for (let i = 0; i <= 5; i += 1) {
       const y = padding.top + (i / 5) * plotHeight;
@@ -302,15 +341,15 @@ export class RenderEngine {
       ctx.stroke();
     }
 
-    ctx.strokeStyle = "#b5c8aa";
+    ctx.strokeStyle = "rgba(74, 123, 111, 0.34)";
     ctx.beginPath();
     ctx.moveTo(padding.left, padding.top);
     ctx.lineTo(padding.left, height - padding.bottom);
     ctx.lineTo(width - padding.right, height - padding.bottom);
     ctx.stroke();
 
-    ctx.fillStyle = "#60745f";
-    ctx.font = `${Math.max(10, Math.round(height * 0.045))}px "Trebuchet MS", sans-serif`;
+    ctx.fillStyle = "rgba(40, 84, 76, 0.86)";
+    ctx.font = `${Math.max(10, Math.round(height * 0.045))}px "Avenir Next", "Segoe UI", sans-serif`;
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     [100, 75, 50, 25, 0].forEach((val) => {
@@ -324,10 +363,22 @@ export class RenderEngine {
     }
 
     const maxPoints = history.length;
+    const visibility = this.chartDisplayOptions.visibility || {};
+    const focusIndicator = this.chartDisplayOptions.focusIndicator;
 
-    for (const indicator of this.data.indicators) {
-      ctx.strokeStyle = indicator.color;
-      ctx.lineWidth = indicator.key === "carbon" ? 2.2 : 2;
+    const visibleIndicators = this.data.indicators.filter((indicator) => visibility[indicator.key] !== false);
+    if (!visibleIndicators.length) {
+      return;
+    }
+
+    for (const indicator of visibleIndicators) {
+      const isFocused = focusIndicator === indicator.key;
+      const dimmed = Boolean(focusIndicator) && !isFocused;
+      const strokeAlpha = dimmed ? 0.24 : 0.96;
+      const dotAlpha = dimmed ? 0.3 : 1;
+
+      ctx.strokeStyle = hexToRgba(indicator.color, strokeAlpha);
+      ctx.lineWidth = isFocused ? 3.2 : indicator.key === "carbon" ? 2.4 : 2;
       if (indicator.key === "carbon") {
         ctx.setLineDash([5, 3]);
       } else {
@@ -352,16 +403,16 @@ export class RenderEngine {
       const latest = history[history.length - 1];
       const lx = width - padding.right;
       const ly = padding.top + ((100 - latest[indicator.key]) / 100) * plotHeight;
-      ctx.fillStyle = indicator.color;
+      ctx.fillStyle = hexToRgba(indicator.color, dotAlpha);
       ctx.beginPath();
-      ctx.arc(lx, ly, 2.5, 0, Math.PI * 2);
+      ctx.arc(lx, ly, isFocused ? 3.4 : 2.5, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    ctx.fillStyle = "#60745f";
+    ctx.fillStyle = "rgba(40, 84, 76, 0.86)";
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.font = `${Math.max(10, Math.round(height * 0.042))}px "Trebuchet MS", sans-serif`;
+    ctx.font = `${Math.max(10, Math.round(height * 0.042))}px "Avenir Next", "Segoe UI", sans-serif`;
     const yearLabel = `Y${snapshot.year}`;
     ctx.fillText(yearLabel, padding.left + 4, height - padding.bottom + 6);
 
