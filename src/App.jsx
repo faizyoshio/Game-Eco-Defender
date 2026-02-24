@@ -123,17 +123,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    const cityCanvas = cityCanvasRef.current;
-    const chartCanvas = chartCanvasRef.current;
-    if (!cityCanvas || !chartCanvas) {
-      return undefined;
-    }
-
     const simulation = new SimulationEngine(GAME_DATA);
-    const renderEngine = new RenderEngine(cityCanvas, chartCanvas, GAME_DATA);
-
     simulationRef.current = simulation;
-    renderEngineRef.current = renderEngine;
 
     simulation.on("state", (nextSnapshot) => {
       const previous = snapshotRef.current;
@@ -159,6 +150,37 @@ export default function App() {
     });
 
     simulation.startNewGame(selectedMode);
+
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+
+      if (bannerTimerRef.current) {
+        window.clearTimeout(bannerTimerRef.current);
+      }
+
+      simulation.stopLoop();
+      simulationRef.current = null;
+      snapshotRef.current = null;
+    };
+  }, []);
+
+  const hasSnapshot = Boolean(snapshot);
+
+  useEffect(() => {
+    if (!hasSnapshot || renderEngineRef.current) {
+      return undefined;
+    }
+
+    const cityCanvas = cityCanvasRef.current;
+    const chartCanvas = chartCanvasRef.current;
+    if (!cityCanvas || !chartCanvas) {
+      return undefined;
+    }
+
+    const renderEngine = new RenderEngine(cityCanvas, chartCanvas, GAME_DATA);
+    renderEngineRef.current = renderEngine;
     renderEngine.resize();
 
     const onResize = () => {
@@ -183,19 +205,9 @@ export default function App() {
         window.cancelAnimationFrame(rafRef.current);
       }
 
-      if (toastTimerRef.current) {
-        window.clearTimeout(toastTimerRef.current);
-      }
-
-      if (bannerTimerRef.current) {
-        window.clearTimeout(bannerTimerRef.current);
-      }
-
-      simulation.stopLoop();
-      simulationRef.current = null;
       renderEngineRef.current = null;
     };
-  }, []);
+  }, [hasSnapshot]);
 
   useEffect(() => {
     if (!renderEngineRef.current) {
