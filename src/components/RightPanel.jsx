@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useState } from "react";
 import GlassPanel from "./GlassPanel";
 
 const tabButtonClass = (active) =>
@@ -21,26 +21,13 @@ const toneByDelta = (value) => {
   return "text-white/70";
 };
 
-const linePath = (series, key, width, height) => {
-  if (!series.length) {
-    return "";
-  }
-
-  const stepX = series.length > 1 ? width / (series.length - 1) : 0;
-  return series
-    .map((point, index) => {
-      const x = index * stepX;
-      const y = height - (Math.max(0, Math.min(100, point[key])) / 100) * height;
-      return `${index === 0 ? "M" : "L"}${x},${y}`;
-    })
-    .join(" ");
-};
-
 function RightPanel({
   indicators,
   selectedIndicatorKey,
   onSelectIndicator,
-  trendSeries,
+  chartCanvasRef,
+  chartVisibility,
+  onToggleChartLine,
   projections,
   stakeholders,
   upgrades,
@@ -48,39 +35,6 @@ function RightPanel({
   leaderboard
 }) {
   const [tab, setTab] = useState("trends");
-  const [visibleLines, setVisibleLines] = useState(() =>
-    Object.fromEntries(indicators.map((indicator) => [indicator.key, true]))
-  );
-
-  const activeIndicators = useMemo(
-    () => indicators.filter((indicator) => visibleLines[indicator.key] !== false),
-    [indicators, visibleLines]
-  );
-
-  const chartPaths = useMemo(() => {
-    const chartWidth = 460;
-    const chartHeight = 188;
-    return activeIndicators.map((indicator) => ({
-      key: indicator.key,
-      color: indicator.color,
-      path: linePath(trendSeries, indicator.key, chartWidth, chartHeight)
-    }));
-  }, [activeIndicators, trendSeries]);
-
-  const toggleLine = (key) => {
-    setVisibleLines((prev) => {
-      const currentlyVisible = prev[key] !== false;
-      const visibleCount = Object.values(prev).filter(Boolean).length;
-      if (currentlyVisible && visibleCount <= 1) {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        [key]: !currentlyVisible
-      };
-    });
-  };
 
   const trendsViewClass = tab === "trends" ? "block" : "hidden xl:block";
   const stakeholdersViewClass = tab === "stakeholders" ? "block" : "hidden xl:block";
@@ -105,55 +59,33 @@ function RightPanel({
       </div>
 
       <div className={trendsViewClass}>
-        <GlassPanel title="Indicator Trends" subtitle="Line emphasis follows selected indicator chip">
+        <GlassPanel title="Indicator Trends" subtitle="Click legend chips to toggle lines. Shift/Alt click to focus.">
           <div className="rounded-xl border border-white/15 bg-white/10 p-2">
-            <svg viewBox="0 0 460 188" className="h-52 w-full" role="img" aria-label="Indicator trend chart placeholder">
-              {[0, 25, 50, 75, 100].map((value) => {
-                const y = 188 - (value / 100) * 188;
-                return (
-                  <line
-                    key={`grid-${value}`}
-                    x1="0"
-                    y1={y}
-                    x2="460"
-                    y2={y}
-                    stroke="rgba(255,255,255,0.16)"
-                    strokeWidth="1"
-                  />
-                );
-              })}
-
-              {chartPaths.map((entry) => {
-                const focused = selectedIndicatorKey === entry.key;
-                const dimmed = Boolean(selectedIndicatorKey) && !focused;
-
-                return (
-                  <path
-                    key={entry.key}
-                    d={entry.path}
-                    fill="none"
-                    stroke={entry.color}
-                    strokeWidth={focused ? "3.2" : "2.1"}
-                    opacity={dimmed ? "0.35" : "0.95"}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                );
-              })}
-            </svg>
+            <canvas
+              ref={chartCanvasRef}
+              width={500}
+              height={260}
+              className="h-52 w-full rounded-lg"
+              aria-label="Indicator trend chart"
+              role="img"
+            />
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
             {indicators.map((indicator) => {
               const active = selectedIndicatorKey === indicator.key;
-              const visible = visibleLines[indicator.key] !== false;
+              const visible = chartVisibility[indicator.key] !== false;
+
               return (
                 <button
                   key={indicator.key}
                   type="button"
-                  onClick={() => {
-                    onSelectIndicator(indicator.key);
-                    toggleLine(indicator.key);
+                  onClick={(event) => {
+                    if (event.shiftKey || event.altKey) {
+                      onSelectIndicator(indicator.key);
+                    } else {
+                      onToggleChartLine(indicator.key);
+                    }
                   }}
                   className={[
                     "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs",
@@ -243,11 +175,7 @@ function RightPanel({
                       style={{ width: `${upgrade.progress}%` }}
                     />
                   </div>
-                  <p className={[
-                    "text-[11px]",
-                    toneByDelta(upgrade.delta)
-                  ].join(" ")}
-                  >
+                  <p className={["text-[11px]", toneByDelta(upgrade.delta)].join(" ")}>
                     Delta: {upgrade.delta > 0 ? "+" : ""}
                     {upgrade.delta}
                   </p>
@@ -274,7 +202,7 @@ function RightPanel({
             <ul className="space-y-2 text-xs text-white/85">
               {leaderboard.map((entry) => (
                 <li key={entry.id} className="rounded-lg border border-white/15 bg-white/10 px-3 py-2">
-                  {entry.result} | {entry.difficulty} | Year {entry.year} | Score {entry.score.toFixed(2)} | {entry.date}
+                  {entry.result.toUpperCase()} | {entry.difficulty} | Year {entry.year} | Score {Number(entry.score).toFixed(2)}
                 </li>
               ))}
             </ul>
