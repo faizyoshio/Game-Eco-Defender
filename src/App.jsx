@@ -517,9 +517,9 @@ export default function App() {
           </div>
         </GlassPanel>
 
-        <main className="grid min-h-0 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-          <GlassPanel className="p-0">
-            <div className="relative min-h-[420px] overflow-hidden rounded-2xl">
+        <main className="grid min-h-0 items-start gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
+          <GlassPanel className="self-start p-0">
+            <div className="relative aspect-[16/9] min-h-[320px] overflow-hidden rounded-2xl sm:min-h-[380px] lg:min-h-[430px]">
               <canvas ref={cityCanvasRef} width={960} height={540} className="h-full w-full" aria-label="City simulation scene" />
 
               <div className="absolute left-4 top-4 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white/85 backdrop-blur-xl">
