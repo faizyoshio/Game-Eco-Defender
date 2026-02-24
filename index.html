@@ -1,214 +1,26 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#27452f" />
-  <meta name="description" content="Eco Defender V2: a browser strategy simulation for environmental governance, fiscal risk, and sustainable city management." />
-  <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./assets/icons/icon-192.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="./styles.css" />
-  <title>Eco Defender</title>
-</head>
-<body>
-  <div class="start-modal" id="start-modal" aria-modal="true" role="dialog">
-    <div class="modal-card">
-      <h1>Eco Defender</h1>
-      <p>Lead your city through 10 years of sustainable growth without environmental collapse.</p>
-      <label class="field-label" for="start-difficulty">Difficulty</label>
-      <select id="start-difficulty" class="difficulty-select">
-        <option value="casual">Casual</option>
-        <option value="realistic" selected>Realistic</option>
-        <option value="crisis">Crisis</option>
-      </select>
-      <div class="modal-actions">
-        <button id="start-new-btn" class="primary-btn">Start New Game</button>
-        <button id="start-resume-btn" class="ghost-btn">Resume Saved Game</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="app-shell" id="app-shell" aria-hidden="true">
-    <header class="top-bar">
-      <div class="brand-block">
-        <h1>Eco Defender</h1>
-        <p>Environmental Governance Simulator</p>
-      </div>
-
-      <div class="top-stats">
-        <div class="stat-item">
-          <span class="label">Budget</span>
-          <span class="value" id="budget-value">$0M</span>
-        </div>
-        <div class="stat-item">
-          <span class="label">Year</span>
-          <span class="value" id="year-value">1</span>
-        </div>
-        <div class="stat-item">
-          <span class="label">Population</span>
-          <span class="value" id="population-value">0</span>
-        </div>
-        <div class="stat-item">
-          <span class="label">Debt</span>
-          <span class="value" id="debt-value">$0M</span>
-        </div>
-        <div class="stat-item">
-          <span class="label">Interest/Cycle</span>
-          <span class="value" id="interest-value">$0M</span>
-        </div>
-      </div>
-
-      <div class="top-controls">
-        <label class="field-label" for="difficulty-select">Mode</label>
-        <select id="difficulty-select" class="difficulty-select">
-          <option value="casual">Casual</option>
-          <option value="realistic" selected>Realistic</option>
-          <option value="crisis">Crisis</option>
-        </select>
-        <label class="toggle-inline" for="low-graphics-toggle">
-          <input id="low-graphics-toggle" type="checkbox" />
-          <span>Low Graphics</span>
-        </label>
-        <button id="new-game-btn" class="ghost-btn">New</button>
-        <button id="save-btn" class="ghost-btn">Save</button>
-        <button id="load-btn" class="ghost-btn">Load</button>
-      </div>
-    </header>
-
-    <main class="content-grid">
-      <section class="city-section">
-        <canvas id="city-canvas" width="960" height="540"></canvas>
-        <div class="city-hud">
-          <div id="round-info" class="round-info"></div>
-          <div id="status-badges" class="status-badges"></div>
-          <div id="event-banner" class="event-banner"></div>
-        </div>
-      </section>
-
-      <aside class="analytics-section">
-        <div class="mobile-tabs" id="mobile-tabs">
-          <button class="tab-btn active" data-panel="charts" type="button">Trends</button>
-          <button class="tab-btn" data-panel="policies" type="button">Policies</button>
-        </div>
-
-        <div class="panel-track" id="panel-track">
-          <section class="panel charts-panel" data-panel="charts">
-            <div class="panel-header">
-              <h2>Analytics</h2>
-              <div class="analytics-tabs" id="analytics-tabs" role="tablist" aria-label="Analytics views">
-                <button class="analytics-tab active" type="button" data-analytics-view="trends" role="tab" aria-selected="true">
-                  Trends
-                </button>
-                <button class="analytics-tab" type="button" data-analytics-view="stakeholders" role="tab" aria-selected="false">
-                  Stakeholders
-                </button>
-                <button class="analytics-tab" type="button" data-analytics-view="log" role="tab" aria-selected="false">
-                  Log
-                </button>
-              </div>
-            </div>
-
-            <div class="analytics-view active" data-analytics-view="trends">
-              <div class="card chart-card">
-                <h3>Indicator Trends</h3>
-                <canvas id="chart-canvas" width="500" height="280"></canvas>
-                <div id="chart-legend" class="chart-legend"></div>
-              </div>
-
-              <div class="card projection-card">
-                <h3>2-Cycle Projection</h3>
-                <ul id="projection-list"></ul>
-              </div>
-            </div>
-
-            <div class="analytics-view" data-analytics-view="stakeholders">
-              <div class="subgrid">
-                <div class="card">
-                  <h3>Stakeholders</h3>
-                  <div id="stakeholder-list"></div>
-                </div>
-                <div class="card">
-                  <h3>Technology Upgrades</h3>
-                  <ul id="upgrade-list"></ul>
-                </div>
-              </div>
-            </div>
-
-            <div class="analytics-view" data-analytics-view="log">
-              <div class="card log-card">
-                <h3>Event Log</h3>
-                <ul id="event-log"></ul>
-              </div>
-
-              <div class="card leaderboard-card">
-                <h3>Leaderboard</h3>
-                <ul id="leaderboard-list"></ul>
-              </div>
-            </div>
-          </section>
-
-          <section class="panel policy-panel-mobile" data-panel="policies">
-            <div class="policy-header">
-              <h2 id="policy-title-mobile">Policy Choices</h2>
-              <button id="skip-policy-mobile" class="ghost-btn" type="button">Skip Cycle</button>
-            </div>
-            <div id="policy-cards-mobile" class="policy-cards"></div>
-          </section>
-        </div>
-      </aside>
-    </main>
-
-    <section class="policy-section" id="policy-section">
-      <div class="policy-header">
-        <h2 id="policy-title">Policy Choices</h2>
-        <button id="skip-policy" class="ghost-btn" type="button">Skip Cycle</button>
-      </div>
-      <div id="policy-cards" class="policy-cards"></div>
-    </section>
-  </div>
-
-  <div class="gameover-modal hidden" id="gameover-modal" aria-modal="true" role="dialog">
-    <div class="modal-card">
-      <h2 id="gameover-title">Simulation Complete</h2>
-      <p id="gameover-reason"></p>
-      <div class="card score-breakdown-card">
-        <h3>Sustainability Index Breakdown</h3>
-        <ul id="score-breakdown-list"></ul>
-      </div>
-      <div class="modal-actions">
-        <button id="gameover-close-btn" class="primary-btn" type="button">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="policy-modal hidden" id="policy-modal" aria-modal="true" role="dialog">
-    <div class="modal-card policy-detail-card" tabindex="-1">
-      <div class="modal-toolbar">
-        <h2 id="policy-modal-title">Policy Details</h2>
-        <button id="policy-modal-close-icon" class="icon-btn ghost-btn" type="button" aria-label="Close policy details">×</button>
-      </div>
-      <p id="policy-modal-summary"></p>
-      <div id="policy-modal-meta" class="policy-modal-meta"></div>
-      <div class="modal-section">
-        <h3>Impacts</h3>
-        <div id="policy-modal-impacts" class="impact-grid"></div>
-      </div>
-      <div class="modal-section">
-        <h3>Stakeholders</h3>
-        <p id="policy-modal-stakeholders"></p>
-      </div>
-      <div class="modal-actions">
-        <button id="policy-modal-close-btn" class="secondary-btn" type="button">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-  <noscript>
-    This game requires JavaScript to run.
-  </noscript>
-
-  <script type="module" src="./src/main.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#173d34" />
+    <meta
+      name="description"
+      content="Eco Defender dashboard rebuilt with React and Tailwind in a Liquid Glass visual system."
+    />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/assets/icons/icon-192.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <title>Eco Defender</title>
+  </head>
+  <body>
+    <noscript>Eco Defender requires JavaScript to run.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
